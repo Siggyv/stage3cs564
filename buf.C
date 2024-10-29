@@ -65,10 +65,10 @@ BufMgr::~BufMgr() {
 
 const Status BufMgr::allocBuf(int & frame) 
 {
-    int num_scanned = 0
+    int idx = 0 // to keep track of where we are in the clock
 
-    while(num_scanned < numBufs * 2){
-        clockHand = (clockHand+1) % numBufs;
+    while(idx < numBufs * 2){
+        
 
 
         return OK;
