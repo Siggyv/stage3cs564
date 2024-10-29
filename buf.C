@@ -70,18 +70,52 @@ BufMgr::~BufMgr() {
 const Status BufMgr::allocBuf(int & frame) 
 {
     int idx = 0 // to keep track of where we are in the clock
+    Status resp;
 
     while(idx < numBufs * 2){
-        
+        // advance clock hand
+        advanceClock();
 
+        // if invalid, use immediately
+        if(!bufTable[clockHand].valid) {
+            frame = bufTable[clockHand].frameNo;
+            return OK;
+        }
 
+        // check the ref bit if set to true set to false then increment idx and continue
+        if(bufTable[clockHand].refbit) {
+            bufTable[clockHand].refbit = false;
+            idx++;
+            continue;
+        }
+
+        // check if pinned, if so go to next frame
+        if(bufTable[clockHand].pinCnt > 0) {
+            idx++;
+            continue;
+        }
+
+        // check dirty bit, and if set flush to disk and (pinCnt = 0, rebit = false, valid = true)
+        if(bufTable[clockHand].dirty) {
+            resp = bufTable[clockHand].file->writePage(bufTable[clockHand].pageNo, &(bufTable[clockHand]));
+            if(resp != OK) {
+                return UNIXERR;
+            }
+        }
+
+        // otherwise use page and evict from hashtable
+        // Must remove old page's mapping from hash table
+        resp  = hashTable->remove(bufTable[clockHand].file, bufTable[clockHand].pageNo);
+        if(resp != OK) {
+            return resp;
+        }
+
+        // get frameNo then clear the frame
+        frame = bufTable[clockHand].pageNo;
+        bufTable[clockHand].Clear();
         return OK;
     }
-
-
-
-
-
+    return BUFFEREXCEEDED;
 }
 
 	
