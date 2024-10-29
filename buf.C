@@ -167,6 +167,7 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
         page = &(bufPool[frame]);
         return OK;
     } else if(status == OK) {
+        bufStats.accesses++;
         bufTable[frame].refbit = true;
         bufTable[frame].pinCnt++;
 
@@ -183,6 +184,7 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 const Status BufMgr::unPinPage(File* file, const int PageNo, 
 			       const bool dirty) 
 {
+    bufStats.accesses++;
     // get page
     int frame = 0;
     Status status = hashTable->lookup(file, PageNo, frame);
@@ -199,8 +201,8 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
     bufTable[frame].pinCnt--;
 
     // this part may be questionable. Just a little unsure of what they exactly want with this part.
-    if(bufTable[frame].dirty) {
-        bufTable[frame].dirty = dirty;
+    if(dirty) {
+        bufTable[frame].dirty = true;
     }
     return OK;
 }
