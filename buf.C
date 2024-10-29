@@ -144,10 +144,10 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
     // check if the page is already in the buffer
     Status status = OK;
     int frame = 0;
-    status = hashTable->lookup(file, PageNo, &frame);
+    status = hashTable->lookup(file, PageNo, frame);
     if(status == HASHNOTFOUND) {
         // case 1:
-        Status resp = allocBuf(&frame);
+        Status resp = allocBuf(frame);
         if(resp != OK){
             return resp;
         }
