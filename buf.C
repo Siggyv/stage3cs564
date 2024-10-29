@@ -69,7 +69,7 @@ BufMgr::~BufMgr() {
 // Make sure that if the buffer frame allocated has a valid page in it, that you remove the appropriate entry from the hash table.
 const Status BufMgr::allocBuf(int & frame) 
 {
-    int idx = 0 // to keep track of where we are in the clock
+    int idx = 0; // to keep track of where we are in the clock
     Status resp;
 
     while(idx < numBufs * 2){
@@ -97,7 +97,7 @@ const Status BufMgr::allocBuf(int & frame)
 
         // check dirty bit, and if set flush to disk and (pinCnt = 0, rebit = false, valid = true)
         if(bufTable[clockHand].dirty) {
-            resp = bufTable[clockHand].file->writePage(bufTable[clockHand].pageNo, &(bufTable[clockHand]));
+            resp = bufTable[clockHand].file->writePage(bufTable[clockHand].pageNo, &(bufPool[clockHand]));
             if(resp != OK) {
                 return UNIXERR;
             }
@@ -111,7 +111,7 @@ const Status BufMgr::allocBuf(int & frame)
         }
 
         // get frameNo then clear the frame
-        frame = bufTable[clockHand].pageNo;
+        frame = bufTable[clockHand].frameNo;
         bufTable[clockHand].Clear();
         return OK;
     }
@@ -139,6 +139,25 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
 
 }
 
+
+// First check whether the page is already in the buffer pool by invoking the lookup()
+// method on the hashtable to get a frame number. 
+// There are two cases to be handled depending on the outcome of the lookup() call:
+
+// Case 1) Page is not in the buffer pool. 
+// Call allocBuf() to allocate a buffer frame and then call the method file->readPage() to read
+// the page from disk into the buffer pool frame.
+// Next, insert the page into the hashtable. 
+// Finally, invoke Set() on the frame to set it up properly. Set() will leave the pinCnt for the page set to 1.  
+// Return a pointer to the frame containing the page via the page parameter.
+
+// Case 2)  
+// Page is in the buffer pool.  
+// In this case set the appropriate refbit, increment the pinCnt for the page, and then return
+// a pointer to the frame containing the page via the page parameter.
+
+// Returns OK if no errors occurred, UNIXERR if a Unix error occurred,
+// BUFFEREXCEEDED if all buffer frames are pinned, HASHTBLERROR if a hash table error occurred.
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
 
