@@ -177,27 +177,63 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
     }
 }
 
-
+// 1. Decrements the pinCnt of the frame containing (file, PageNo) and, 
+// 2. if dirty == true, sets the dirty bit.  
+// 3. Returns OK if no errors occurred, HASHNOTFOUND if the page is not in the buffer pool hash table, PAGENOTPINNED if the pin count is already 0.
 const Status BufMgr::unPinPage(File* file, const int PageNo, 
 			       const bool dirty) 
 {
+    // get page
+    int frame = 0;
+    Status status = hashTable->lookup(file, PageNo, frame);
+    if(status != OK) {
+        return status;
+    }
 
+    // check pincnt
+    if(bufTable[frame].pinCnt == 0) {
+        return PAGENOTPINNED;
+    }
 
+    // decrement pincnt
+    bufTable[frame].pinCnt--;
 
-
-
+    // this part may be questionable. Just a little unsure of what they exactly want with this part.
+    if(bufTable[frame].dirty) {
+        bufTable[frame].dirty = dirty;
+    }
+    return OK;
 }
 
-
+// This call is kind of weird.  The first step is to to allocate an empty page in the specified file by invoking the file->allocatePage() method.
+// This method will return the page number of the newly allocated page.  
+// Then allocBuf() is called to obtain a buffer pool frame.  
+// Next, an entry is inserted into the hash table and Set() is invoked on the frame to set it up properly.  
+// The method returns both the page number of the newly allocated page to the caller via the pageNo parameter and a pointer to the buffer frame allocated for the page via the page parameter.
+// Returns OK if no errors occurred, UNIXERR if a Unix error occurred, BUFFEREXCEEDED if all buffer frames are pinned and HASHTBLERROR if a hash table error occurred. 
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
+    int pageNum = 0;
+    Status status = file->allocatePage(pageNum);
+    if(status != OK) {
+        return status;
+    }
 
+    int frame = 0;
+    status = allocBuf(frame);
+    if(status != OK) {
+        return status;
+    }
 
+    status = hashTable->insert(file, pageNum, frame);
+    if(status != OK) {
+        return status;
+    }
 
-
-
-
-
+    bufTable[frame].Set(file, pageNum);
+    pageNo = pageNum;
+    page = &(bufPool[frame]);
+    return OK;
 }
 
 const Status BufMgr::disposePage(File* file, const int pageNo) 
