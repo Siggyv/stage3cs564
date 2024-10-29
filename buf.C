@@ -62,7 +62,11 @@ BufMgr::~BufMgr() {
     delete [] bufPool;
 }
 
-
+// Allocates a free frame using the clock algorithm; if necessary, writing a dirty page back to disk. 
+// Returns BUFFEREXCEEDED if all buffer frames are pinned, UNIXERR if the call to the I/O layer returned an error 
+//      when a dirty page was being written to disk and OK otherwise.  
+// This private method will get called by the readPage() and allocPage() methods described below.
+// Make sure that if the buffer frame allocated has a valid page in it, that you remove the appropriate entry from the hash table.
 const Status BufMgr::allocBuf(int & frame) 
 {
     int idx = 0 // to keep track of where we are in the clock
