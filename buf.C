@@ -101,6 +101,8 @@ const Status BufMgr::allocBuf(int & frame)
             if(resp != OK) {
                 return UNIXERR;
             }
+
+            bufStats.diskwrites++;
         }
 
         // otherwise use page and evict from hashtable
@@ -117,28 +119,6 @@ const Status BufMgr::allocBuf(int & frame)
     }
     return BUFFEREXCEEDED;
 }
-
-	
-const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
-{
-
-
-
-
-
-}
-
-
-const Status BufMgr::unPinPage(File* file, const int PageNo, 
-			       const bool dirty) 
-{
-
-
-
-
-
-}
-
 
 // First check whether the page is already in the buffer pool by invoking the lookup()
 // method on the hashtable to get a frame number. 
@@ -157,7 +137,58 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
 // a pointer to the frame containing the page via the page parameter.
 
 // Returns OK if no errors occurred, UNIXERR if a Unix error occurred,
-// BUFFEREXCEEDED if all buffer frames are pinned, HASHTBLERROR if a hash table error occurred.
+// BUFFEREXCEEDED if all buffer frames are pinned, HASHTBLERROR if a hash table error occurred.	
+const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
+{
+    bufStats.accesses++;
+    // check if the page is already in the buffer
+    Status status = OK;
+    int frame = 0;
+    status = hashTable->lookup(file, PageNo, &frame);
+    if(status == HASHNOTFOUND) {
+        // case 1:
+        Status resp = allocBuf(&frame);
+        if(resp != OK){
+            return resp;
+        }
+
+        resp = file->readPage(PageNo, &(bufPool[frame]));
+        if(resp != OK) {
+            return resp;
+        }
+        bufStats.diskreads++;
+
+        resp = hashTable->insert(file, PageNo, frame);
+        if(resp != OK) {
+            return resp;
+        }
+
+        bufTable[frame].Set(file, PageNo);
+        page = &(bufPool[frame]);
+        return OK;
+    } else if(status == OK) {
+        bufTable[frame].refbit = true;
+        bufTable[frame].pinCnt++;
+
+        page = &(bufPool[frame]);
+        return OK;
+    } else {
+        return status;
+    }
+}
+
+
+const Status BufMgr::unPinPage(File* file, const int PageNo, 
+			       const bool dirty) 
+{
+
+
+
+
+
+}
+
+
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
 
