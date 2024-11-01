@@ -200,7 +200,7 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
     // decrement pincnt
     bufTable[frame].pinCnt--;
 
-    // this part may be questionable. Just a little unsure of what they exactly want with this part.
+    // set dirty bit if arg passed indicates page was changed
     if(dirty) {
         bufTable[frame].dirty = true;
     }
